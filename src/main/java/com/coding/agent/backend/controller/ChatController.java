@@ -1,5 +1,7 @@
 package com.coding.agent.backend.controller;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -16,8 +18,6 @@ import com.coding.agent.backend.model.TranslateCodeRequest;
 import com.coding.agent.backend.model.TranslateCodeResponse;
 import com.coding.agent.backend.service.ChatService;
 
-import lombok.RequiredArgsConstructor;
-
 /**
  * REST controller for chat interactions and code translation.
  * Exposes endpoints for synchronous GET/POST user queries and polyglot code translations.
@@ -25,22 +25,24 @@ import lombok.RequiredArgsConstructor;
 @CrossOrigin
 @RestController
 @RequestMapping("/chat")
-@RequiredArgsConstructor
 public class ChatController {
+
+    private static final Logger log = LoggerFactory.getLogger(ChatController.class);
 
     private final ChatService chatService;
 
+    public ChatController(ChatService chatService) {
+        this.chatService = chatService;
+    }
+
     /**
      * Handles simple GET-based chat requests via URL query parameter.
-     * 
-     * @param conversationId unique session ID from request header
-     * @param message user query message string
-     * @return AI assistant text response
      */
     @GetMapping
     public ResponseEntity<String> chatGet(
             @RequestHeader(value = "Conversation-Id", required = false, defaultValue = "default-session") String conversationId,
             @RequestParam(name = "message", required = false) String message) {
+        log.info("[HTTP GET /chat] conversationId: '{}', message: '{}'", conversationId, message);
         if (message == null || message.isBlank()) {
             return ResponseEntity.badRequest().body("Query parameter 'message' is required.");
         }
@@ -50,10 +52,6 @@ public class ChatController {
 
     /**
      * Handles standard JSON POST chat requests with session tracking.
-     * 
-     * @param headerConversationId fallback session ID from HTTP header
-     * @param request payload containing user message and optional conversation ID
-     * @return AI assistant text response
      */
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> chat(
@@ -66,15 +64,13 @@ public class ChatController {
                 ? request.conversationId().trim()
                 : headerConversationId;
 
+        log.info("[HTTP POST /chat] conversationId: '{}', query: '{}'", conversationId, request.message());
         String response = chatService.chat(request.message().trim(), conversationId);
         return ResponseEntity.ok(response);
     }
 
     /**
-     * Translates a given code snippet to another programming language (Java, JavaScript, C#, Python, TypeScript, Go).
-     * 
-     * @param request payload containing source code and desired target language
-     * @return translated code response without markdown fences
+     * Translates a given code snippet to another programming language.
      */
     @PostMapping(value = "/translate-code", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<TranslateCodeResponse> translateCode(@RequestBody TranslateCodeRequest request) {
@@ -85,9 +81,9 @@ public class ChatController {
                 ? request.targetLanguage().trim()
                 : "python";
 
+        log.info("[HTTP POST /chat/translate-code] targetLanguage: '{}'", targetLang);
         String result = chatService.translateCode(request.code().trim(), targetLang);
 
-        // Strip markdown code fences if present to return clean, pure code
         String cleanCode = result;
         if (cleanCode != null) {
             cleanCode = cleanCode.replaceAll("(?s)^\\s*```[a-zA-Z0-9_-]*\\r?\\n", "");

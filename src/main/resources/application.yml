@@ -19,14 +19,18 @@ server:
   port: 8082
 
 weatherstack:
-  access-key: 3588ddfccae2530c28d16c345180ad17
+  access-key: 
   base-url: http://api.weatherstack.com
 
 rapidapi:
   booking:
-    key: b435ea064emsh01eade17adad664p1b474bjsnb6c8610ea71f
+    key: 
     host: booking-com.p.rapidapi.com
     base-url: https://booking-com.p.rapidapi.com
+  flights:
+    key: 
+    host: booking-com15.p.rapidapi.com
+    base-url: https://booking-com15.p.rapidapi.com
 
 # Actuator & Prometheus Exposure
 # management:

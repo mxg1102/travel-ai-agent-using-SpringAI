@@ -13,14 +13,11 @@ import com.coding.agent.backend.tools.InventoryTools;
 import com.coding.agent.backend.tools.OrderTools;
 import com.coding.agent.backend.tools.WeatherTools;
 
-import lombok.RequiredArgsConstructor;
-
 /**
  * Configuration class for Spring AI ChatClient and ChatMemory.
  * Registers conversation memory and binds AI tools for orders, inventory, flights, hotels, and weather.
  */
 @Configuration
-@RequiredArgsConstructor
 public class AiConfig {
 
     private final OrderTools orderTools;
@@ -28,6 +25,19 @@ public class AiConfig {
     private final HotelTools hotelTools;
     private final FlightTools flightTools;
     private final WeatherTools weatherTools;
+
+    public AiConfig(
+            OrderTools orderTools,
+            InventoryTools inventoryTools,
+            HotelTools hotelTools,
+            FlightTools flightTools,
+            WeatherTools weatherTools) {
+        this.orderTools = orderTools;
+        this.inventoryTools = inventoryTools;
+        this.hotelTools = hotelTools;
+        this.flightTools = flightTools;
+        this.weatherTools = weatherTools;
+    }
 
     /**
      * Configures sliding-window chat memory to preserve conversation context.

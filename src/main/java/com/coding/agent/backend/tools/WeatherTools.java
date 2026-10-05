@@ -25,12 +25,6 @@ public class WeatherTools {
     private final String accessKey;
     private final String baseUrl;
 
-    /**
-     * Initializes WeatherTools with WeatherStack API credentials and base URL.
-     * 
-     * @param accessKey WeatherStack API access key
-     * @param baseUrl base URL for WeatherStack service
-     */
     public WeatherTools(
             @Value("${weatherstack.access-key:3588ddfccae2530c28d16c345180ad17}") String accessKey,
             @Value("${weatherstack.base-url:http://api.weatherstack.com}") String baseUrl) {
@@ -41,22 +35,20 @@ public class WeatherTools {
 
     /**
      * Fetches current real-time weather, temperature, humidity, wind, and precipitation for a city.
-     * 
-     * @param city destination city or region name
-     * @return formatted weather forecast summary string
      */
     @Tool(name = "getForecast", description = "Get current weather for a city. Returns temperature, weather condition, and humidity.")
     public String getForecast(String city) {
-        log.info("Fetching weather for city: {}", city);
+        log.info("[TOOL CALL] getForecast - city: {}", city);
 
         if (city == null || city.isBlank()) {
-            return "City name cannot be empty.";
+            String validationMsg = "City name cannot be empty.";
+            log.warn("[TOOL VALIDATION] getForecast failed: {}", validationMsg);
+            return validationMsg;
         }
 
         String cleanCity = city.replaceAll("\\(.*?\\)", "").trim();
 
         try {
-            // Only mandatory params: access_key and query
             String uri = UriComponentsBuilder.fromUriString(baseUrl)
                     .path("/current")
                     .queryParam("access_key", accessKey)
@@ -78,46 +70,39 @@ public class WeatherTools {
                 String cityName = response.location().name();
                 String countryName = response.location().country();
 
-                return String.format("Weather in %s, %s: %d°C, %s, Humidity: %d%%, Wind: %d km/h, Precipitation: %.1f mm",
-                        cityName,
-                        countryName,
-                        response.current().temperature(),
-                        condition,
-                        response.current().humidity(),
-                        wind,
-                        precip);
+                String result = String.format("Weather in %s, %s: %d°C, %s, Humidity: %d%%, Wind: %d km/h, Precipitation: %.1f mm",
+                        cityName, countryName, response.current().temperature(), condition, response.current().humidity(), wind, precip);
+
+                log.info("[TOOL RESPONSE] getForecast: {}", result);
+                return result;
+
             } else if (response != null && response.error() != null) {
-                return String.format("Weather unavailable for '%s': %s", cleanCity, response.error().info());
+                String apiErr = String.format("Weather unavailable for '%s': %s", cleanCity, response.error().info());
+                log.warn("[TOOL RESPONSE] getForecast API Error: {}", apiErr);
+                return apiErr;
             }
         } catch (Exception e) {
-            log.error("Failed to query weather for city {}: {}", cleanCity, e.getMessage());
+            log.error("[TOOL ERROR] getForecast failed for city {}: {}", cleanCity, e.getMessage(), e);
             return String.format("Weather service error for '%s': %s", cleanCity, e.getMessage());
         }
 
-        return String.format("No weather data found for '%s'.", cleanCity);
+        String noData = String.format("No weather data found for '%s'.", cleanCity);
+        log.info("[TOOL RESPONSE] getForecast: {}", noData);
+        return noData;
     }
 
-    /**
-     * DTO mapping WeatherStack top-level API response.
-     */
     public record WeatherResponse(
             Location location,
             CurrentWeather current,
             ApiError error
     ) {}
 
-    /**
-     * DTO mapping destination location details and local timestamp.
-     */
     public record Location(
             String name,
             String country,
             String localtime
     ) {}
 
-    /**
-     * DTO mapping current atmospheric and weather conditions.
-     */
     public record CurrentWeather(
             int temperature,
             @JsonProperty("weather_descriptions") List<String> weatherDescriptions,
@@ -128,9 +113,6 @@ public class WeatherTools {
             Integer feelslike
     ) {}
 
-    /**
-     * DTO mapping API error notifications.
-     */
     public record ApiError(
             String info
     ) {}

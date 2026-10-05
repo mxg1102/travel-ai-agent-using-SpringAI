@@ -30,13 +30,6 @@ public class HotelTools {
     private final String apiHost;
     private final String baseUrl;
 
-    /**
-     * Initializes HotelTools with RapidAPI Booking.com credentials and endpoint configuration.
-     * 
-     * @param apiKey RapidAPI key
-     * @param apiHost RapidAPI host header
-     * @param baseUrl base URL for Booking.com API endpoints
-     */
     public HotelTools(
             @Value("${rapidapi.booking.key}") String apiKey,
             @Value("${rapidapi.booking.host:booking-com.p.rapidapi.com}") String apiHost,
@@ -49,10 +42,6 @@ public class HotelTools {
 
     /**
      * Queries live hotels from Booking.com API for a destination city within an optional maximum price limit.
-     * 
-     * @param city destination city or region name
-     * @param maxPrice optional upper budget per night in INR (₹)
-     * @return summary list of hotels with IDs, prices, ratings, and locations
      */
     @Tool(name = "searchHotel", description = "Search for available live hotels in an Indian city or region (e.g. Goa, Mumbai, Delhi). Returns Hotel IDs (needed for booking), hotel names, rates in INR, and ratings.")
     public String searchHotels(
@@ -60,10 +49,12 @@ public class HotelTools {
             @ToolParam(description = "Maximum price per night in INR, or 0 for no limit", required = false) Integer maxPrice) {
 
         int priceLimit = (maxPrice != null && maxPrice > 0) ? maxPrice : 0;
-        log.info("Querying live hotels from Booking.com API for city: {}, maxPrice: ₹{}", city, priceLimit);
+        log.info("[TOOL CALL] searchHotel - city: {}, maxPrice: ₹{}", city, priceLimit);
 
         if (city == null || city.isBlank()) {
-            return "City name cannot be empty.";
+            String validationMsg = "City name cannot be empty.";
+            log.warn("[TOOL VALIDATION] searchHotel failed: {}", validationMsg);
+            return validationMsg;
         }
 
         String cleanCity = city.replaceAll("\\(.*?\\)", "").trim();
@@ -84,7 +75,9 @@ public class HotelTools {
                     .body(new ParameterizedTypeReference<List<LocationResult>>() {});
 
             if (locations == null || locations.isEmpty()) {
-                return "No destination found for city: " + cleanCity;
+                String notFound = "No destination found for city: " + cleanCity;
+                log.info("[TOOL RESPONSE] searchHotel: {}", notFound);
+                return notFound;
             }
 
             // Strictly pick Indian destination (country = India or cc1 = in)
@@ -101,14 +94,11 @@ public class HotelTools {
 
             String destId = targetLocation.destId();
             String destType = targetLocation.destType();
-            log.info("Selected destination '{}' ({}, cc1: {}) with dest_id: {}, dest_type: {}", 
-                    targetLocation.name(), targetLocation.country(), targetLocation.cc1(), destId, destType);
 
             // Step 2: Search live hotel offers for upcoming dates
             String checkinDate = LocalDate.now().plusWeeks(2).toString();
             String checkoutDate = LocalDate.now().plusWeeks(2).plusDays(1).toString();
 
-            // Note: filter_by_currency and room_number are strictly required by Booking.com API
             String searchUri = UriComponentsBuilder.fromUriString(baseUrl)
                     .path("/v1/hotels/search")
                     .queryParam("dest_id", destId)
@@ -133,7 +123,9 @@ public class HotelTools {
                     .body(HotelSearchResponse.class);
 
             if (searchResponse == null || searchResponse.result() == null || searchResponse.result().isEmpty()) {
-                return "No live hotels currently returned for " + cleanCity + " on Booking.com.";
+                String noHotels = "No live hotels currently returned for " + cleanCity + " on Booking.com.";
+                log.info("[TOOL RESPONSE] searchHotel: {}", noHotels);
+                return noHotels;
             }
 
             // Step 3: Filter by maxPrice (if specified) or list top hotels
@@ -147,14 +139,16 @@ public class HotelTools {
                     .toList();
 
             if (matchingHotels.isEmpty()) {
-                return String.format("Found %d live hotels in %s, but none under ₹%d/night.",
+                String priceExceeded = String.format("Found %d live hotels in %s, but none under ₹%d/night.",
                         searchResponse.result().size(), cleanCity, priceLimit);
+                log.info("[TOOL RESPONSE] searchHotel: {}", priceExceeded);
+                return priceExceeded;
             }
 
-            return matchingHotels.stream()
+            String response = matchingHotels.stream()
                     .map(h -> {
                         int price = h.extractPrice();
-                        String priceStr = price > 0 ? "₹" + price + "/night" : "Price on request";
+                        String priceStr = price > 0 ? "₹" + String.format("%,d", price) + "/night" : "Price on request";
                         double rating = h.reviewScore() != null ? h.reviewScore() : 4.0;
                         String locInfo = "";
                         if (h.distance() != null && !h.distance().isBlank()) {
@@ -167,27 +161,36 @@ public class HotelTools {
                     })
                     .collect(Collectors.joining(", "));
 
+            log.info("[TOOL RESPONSE] searchHotel - found results: {}", response);
+            return response;
+
         } catch (Exception e) {
-            log.error("Error querying live Booking.com API for {}: {}", cleanCity, e.getMessage(), e);
+            log.error("[TOOL ERROR] searchHotel failed for {}: {}", cleanCity, e.getMessage(), e);
             return String.format("Error fetching live hotels for '%s': %s", cleanCity, e.getMessage());
         }
     }
 
     /**
      * Initiates a live hotel booking process for a specified hotel ID.
-     * 
-     * @param hotelId unique identifier of the hotel
-     * @return confirmation message for booking initiation
      */
     @Tool(name = "bookHotel", description = "Book a live hotel by its hotel ID.")
     public String bookHotel(String hotelId) {
-        log.info("Booking request received for hotel ID: {}", hotelId);
-        return "Live booking initiated for Hotel ID: " + hotelId + ". Please complete guest details and payment confirmation.";
+        log.info("[TOOL CALL] bookHotel - hotelId: {}", hotelId);
+        try {
+            if (hotelId == null || hotelId.isBlank()) {
+                String invalidId = "Hotel ID cannot be empty to book a hotel.";
+                log.warn("[TOOL VALIDATION] bookHotel failed: {}", invalidId);
+                return invalidId;
+            }
+            String result = "Live booking initiated for Hotel ID: " + hotelId.trim() + ". Please complete guest details and payment confirmation.";
+            log.info("[TOOL RESPONSE] bookHotel: {}", result);
+            return result;
+        } catch (Exception e) {
+            log.error("[TOOL ERROR] bookHotel failed for ID {}: {}", hotelId, e.getMessage(), e);
+            return "Unable to initiate booking for Hotel ID " + hotelId + ": " + e.getMessage();
+        }
     }
 
-    /**
-     * DTO mapping Booking.com location autocomplete results.
-     */
     public record LocationResult(
             @JsonProperty("dest_id") String destId,
             @JsonProperty("dest_type") String destType,
@@ -197,17 +200,11 @@ public class HotelTools {
             @JsonProperty("cc1") String cc1
     ) {}
 
-    /**
-     * DTO mapping Booking.com hotel search response wrapper.
-     */
     public record HotelSearchResponse(
             @JsonProperty("count") Integer count,
             @JsonProperty("result") List<HotelItem> result
     ) {}
 
-    /**
-     * DTO mapping individual hotel listings from Booking.com.
-     */
     public record HotelItem(
             @JsonProperty("hotel_id") Long hotelId,
             @JsonProperty("hotel_name") String hotelName,
@@ -218,11 +215,6 @@ public class HotelTools {
             @JsonProperty("address") String address,
             @JsonProperty("district") String district
     ) {
-        /**
-         * Resolves the approximate nightly rate from gross amounts or total prices.
-         * 
-         * @return nightly rate in local currency units
-         */
         public int extractPrice() {
             if (compositePrice != null && compositePrice.grossAmountPerNight() != null && compositePrice.grossAmountPerNight().value() != null) {
                 return compositePrice.grossAmountPerNight().value().intValue();
@@ -237,17 +229,11 @@ public class HotelTools {
         }
     }
 
-    /**
-     * Composite price breakdown containing total and per-night amount details.
-     */
     public record CompositePrice(
             @JsonProperty("gross_amount") Amount grossAmount,
             @JsonProperty("gross_amount_per_night") Amount grossAmountPerNight
     ) {}
 
-    /**
-     * Monetary amount structure with numerical value and currency symbol.
-     */
     public record Amount(
             @JsonProperty("value") Double value,
             @JsonProperty("currency") String currency
