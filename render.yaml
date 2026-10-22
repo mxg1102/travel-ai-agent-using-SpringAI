@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: travel-ai-agent-using-springai
+    runtime: docker
+    plan: free
+    region: oregon
+    branch: main
+    healthCheckPath: /actuator/health
+    autoDeploy: true
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: WEATHERSTACK_ACCESS_KEY
+        sync: false
+      - key: RAPIDAPI_BOOKING_KEY
+        sync: false
+      - key: RAPIDAPI_FLIGHTS_KEY
+        sync: false
