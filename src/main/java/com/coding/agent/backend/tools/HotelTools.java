@@ -43,13 +43,13 @@ public class HotelTools {
     /**
      * Queries live hotels from Booking.com API for a destination city within an optional maximum price limit.
      */
-    @Tool(name = "searchHotel", description = "Search for available live hotels in an Indian city or region (e.g. Goa, Mumbai, Delhi). Returns Hotel IDs (needed for booking), hotel names, rates in INR, and ratings.")
+    @Tool(name = "searchHotel", description = "Search for available live hotels worldwide in the city and country requested by the user (e.g. Rome, Italy; Paris, France; Goa, India). Returns hotel IDs, names, rates in EUR by default, and ratings. Never restrict searches to India.")
     public String searchHotels(
             @ToolParam(description = "City or region name to search hotels in (e.g. Goa, Mumbai, Delhi)") String city,
             @ToolParam(description = "Maximum price per night in INR, or 0 for no limit", required = false) Integer maxPrice) {
 
         int priceLimit = (maxPrice != null && maxPrice > 0) ? maxPrice : 0;
-        log.info("[TOOL CALL] searchHotel - city: {}, maxPrice: ₹{}", city, priceLimit);
+        log.info("[TOOL CALL] searchHotel - city: {}, maxPrice: EUR {}", city, priceLimit);
 
         if (city == null || city.isBlank()) {
             String validationMsg = "City name cannot be empty.";
@@ -80,17 +80,13 @@ public class HotelTools {
                 return notFound;
             }
 
-            // Strictly pick Indian destination (country = India or cc1 = in)
+            // Respect the requested destination instead of forcing every search to India.
+            // Prefer city/region results; the provider-ranked first match is the fallback.
             LocationResult targetLocation = locations.stream()
-                    .filter(loc -> (loc.country() != null && loc.country().equalsIgnoreCase("India"))
-                            || "in".equalsIgnoreCase(loc.cc1()))
-                    .filter(loc -> "region".equalsIgnoreCase(loc.destType()) || "city".equalsIgnoreCase(loc.destType()))
+                    .filter(loc -> "city".equalsIgnoreCase(loc.destType())
+                            || "region".equalsIgnoreCase(loc.destType()))
                     .findFirst()
-                    .orElseGet(() -> locations.stream()
-                            .filter(loc -> (loc.country() != null && loc.country().toLowerCase().contains("india"))
-                                    || "in".equalsIgnoreCase(loc.cc1()))
-                            .findFirst()
-                            .orElse(locations.getFirst()));
+                    .orElse(locations.getFirst());
 
             String destId = targetLocation.destId();
             String destType = targetLocation.destType();
@@ -104,8 +100,8 @@ public class HotelTools {
                     .queryParam("dest_id", destId)
                     .queryParam("dest_type", destType)
                     .queryParam("locale", "en-gb")
-                    .queryParam("currency", "INR")
-                    .queryParam("filter_by_currency", "INR")
+                    .queryParam("currency", "EUR")
+                    .queryParam("filter_by_currency", "EUR")
                     .queryParam("room_number", "1")
                     .queryParam("adults_number", "1")
                     .queryParam("checkin_date", checkinDate)
@@ -139,7 +135,7 @@ public class HotelTools {
                     .toList();
 
             if (matchingHotels.isEmpty()) {
-                String priceExceeded = String.format("Found %d live hotels in %s, but none under ₹%d/night.",
+                String priceExceeded = String.format("Found %d live hotels in %s, but none under EUR %d/night.",
                         searchResponse.result().size(), cleanCity, priceLimit);
                 log.info("[TOOL RESPONSE] searchHotel: {}", priceExceeded);
                 return priceExceeded;
@@ -148,7 +144,7 @@ public class HotelTools {
             String response = matchingHotels.stream()
                     .map(h -> {
                         int price = h.extractPrice();
-                        String priceStr = price > 0 ? "₹" + String.format("%,d", price) + "/night" : "Price on request";
+                        String priceStr = price > 0 ? "EUR " + String.format("%,d", price) + "/night" : "Price on request";
                         double rating = h.reviewScore() != null ? h.reviewScore() : 4.0;
                         String locInfo = "";
                         if (h.distance() != null && !h.distance().isBlank()) {
