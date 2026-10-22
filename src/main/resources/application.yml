@@ -4,49 +4,34 @@ spring:
   jackson:
     deserialization:
       fail-on-unknown-properties: false
-
   ai:
     openai:
-      api-key: ""
-      base-url: https://api.groq.com/openai/v1
+      api-key: ${GROQ_API_KEY:}
+      base-url: ${GROQ_BASE_URL:https://api.groq.com/openai/v1}
       chat:
-        model: openai/gpt-oss-120b
-        extra-body:                                                                                                                    
-                include_reasoning: false 
-        # temperature: 0.5
+        model: ${GROQ_MODEL:openai/gpt-oss-120b}
+        extra-body:
+          include_reasoning: false
 
 server:
-  port: 8082
+  port: ${PORT:8082}
+  address: 0.0.0.0
 
 weatherstack:
-  access-key: 
-  base-url: http://api.weatherstack.com
+  access-key: ${WEATHERSTACK_ACCESS_KEY:}
+  base-url: ${WEATHERSTACK_BASE_URL:http://api.weatherstack.com}
 
 rapidapi:
   booking:
-    key: 
-    host: booking-com.p.rapidapi.com
-    base-url: https://booking-com.p.rapidapi.com
+    key: ${RAPIDAPI_BOOKING_KEY:}
+    host: ${RAPIDAPI_BOOKING_HOST:booking-com.p.rapidapi.com}
+    base-url: ${RAPIDAPI_BOOKING_BASE_URL:https://booking-com.p.rapidapi.com}
   flights:
-    key: 
-    host: booking-com15.p.rapidapi.com
-    base-url: https://booking-com15.p.rapidapi.com
+    key: ${RAPIDAPI_FLIGHTS_KEY:}
+    host: ${RAPIDAPI_FLIGHTS_HOST:booking-com15.p.rapidapi.com}
+    base-url: ${RAPIDAPI_FLIGHTS_BASE_URL:https://booking-com15.p.rapidapi.com}
 
-# Actuator & Prometheus Exposure
-# management:
-#   endpoints:
-#     web:
-#       exposure:
-#         include: health,info,prometheus,metrics
-#   endpoint:
-#     health:
-#       show-details: always
-#   metrics:
-#     tags:
-#       application: chatbot-monitoring
-
-# Logging configuration
 logging:
   level:
-    org.springframework.ai: DEBUG
-    org.springframework.ai.chat.client.advisor: DEBUG
+    org.springframework.ai: INFO
+    org.springframework.ai.chat.client.advisor: INFO
