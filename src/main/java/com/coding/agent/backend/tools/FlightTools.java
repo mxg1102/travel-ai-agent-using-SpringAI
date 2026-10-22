@@ -44,7 +44,17 @@ public class FlightTools {
             Map.entry("srinagar", "SXR"), Map.entry("varanasi", "VNS"),
             Map.entry("guwahati", "GAU"), Map.entry("chandigarh", "IXC"),
             Map.entry("amritsar", "ATQ"), Map.entry("bhubaneswar", "BBI"),
-            Map.entry("indore", "IDR")
+            Map.entry("indore", "IDR"),
+            Map.entry("rome", "ROM"), Map.entry("milan", "MIL"), Map.entry("milan malpensa", "MXP"),
+            Map.entry("venice", "VCE"), Map.entry("florence", "FLR"), Map.entry("naples", "NAP"),
+            Map.entry("bologna", "BLQ"), Map.entry("turin", "TRN"), Map.entry("pisa", "PSA"),
+            Map.entry("london", "LON"), Map.entry("paris", "PAR"), Map.entry("amsterdam", "AMS"),
+            Map.entry("madrid", "MAD"), Map.entry("barcelona", "BCN"), Map.entry("berlin", "BER"),
+            Map.entry("frankfurt", "FRA"), Map.entry("munich", "MUC"), Map.entry("vienna", "VIE"),
+            Map.entry("zurich", "ZRH"), Map.entry("lisbon", "LIS"), Map.entry("athens", "ATH"),
+            Map.entry("new york", "JFK"), Map.entry("los angeles", "LAX"), Map.entry("tokyo", "TYO"),
+            Map.entry("singapore", "SIN"), Map.entry("dubai", "DXB"), Map.entry("istanbul", "IST"),
+            Map.entry("cairo", "CAI"), Map.entry("sydney", "SYD"), Map.entry("toronto", "YYZ")
     );
 
     public FlightTools(
@@ -74,7 +84,7 @@ public class FlightTools {
     /**
      * Searches for available domestic flights with real-time live prices in INR (₹).
      */
-    @Tool(name = "searchFlight", description = "Search for available real-time domestic flights with live prices in INR (₹) between source and destination cities on a travel date.")
+    @Tool(name = "searchFlight", description = "Search for available real-time domestic or international flights worldwide between source and destination cities or airport codes on a travel date. Prices are in EUR by default.")
     public String searchFlight(
             @ToolParam(description = "Departure city or airport code (e.g. Patna, Delhi, Mumbai, DEL, BOM)") String source,
             @ToolParam(description = "Arrival city or airport code (e.g. Delhi, Goa, Mumbai, BOM, GOI)") String destination,
@@ -98,7 +108,7 @@ public class FlightTools {
                     .queryParam("fromId", fromId)
                     .queryParam("toId", toId)
                     .queryParam("departDate", departDate)
-                    .queryParam("currency_code", "INR")
+                    .queryParam("currency_code", "EUR")
                     .queryParam("adults", "1")
                     .queryParam("cabinClass", "ECONOMY")
                     .queryParam("sort", "BEST")
@@ -162,7 +172,7 @@ public class FlightTools {
             String detailsUri = UriComponentsBuilder.fromUriString(baseUrl)
                     .path("/api/v1/flights/getFlightDetails")
                     .queryParam("token", token.trim())
-                    .queryParam("currency_code", "INR")
+                    .queryParam("currency_code", "EUR")
                     .toUriString();
 
             String rawJson = restClient.get()
@@ -219,7 +229,7 @@ public class FlightTools {
                 offer.path("priceBreakdown").path("total").path("units").asLong(0)
         );
 
-        String priceStr = price > 0 ? "₹" + String.format("%,d", price) : "Price on request";
+        String priceStr = price > 0 ? "EUR " + String.format("%,d", price) : "Price on request";
         String timing = (!depTime.isEmpty() && !arrTime.isEmpty())
                 ? String.format(" [Dep: %s, Arr: %s%s, %s]", depTime, arrTime, duration.isBlank() ? "" : ", " + duration, stops)
                 : "";
